@@ -6,40 +6,46 @@ const network = NETWORK.eth;
 
 // General metadata for Ethereum
 const namePrefix = "Your Collection";
+const symbol = "YC";
 const description = "Remember to replace this description";
 const baseUri = "ipfs://NewUriToReplace";
 
-const solanaMetadata = {
-  symbol: "YC",
-  seller_fee_basis_points: 1000, // Define how much % you want from secondary market sales 1000 = 10%
-  external_url: "https://www.youtube.com/c/hashlipsnft",
-  creators: [
-    {
-      address: "7fXNuer5sbZtaTEPhtJ5g5gNtuyRoKkvxdjEjEnPN4mC",
-      share: 100,
-    },
-  ],
-};
 
 // If you have selected Solana then the collection starts from 0 automatically
 const layerConfigurations = [
   {
-    growEditionSizeTo: 5,
+    growEditionSizeTo: 4,
     layersOrder: [
-      { name: "Background" },
-      { name: "Eyeball" },
-      { name: "Eye color" },
-      { name: "Iris" },
-      { name: "Shine" },
-      { name: "Bottom lid" },
-      { name: "Top lid" },
+      { name: "RALLY" },
+      { name: "COUNTER" },
+      { name: "SPEED" },
+      { name: "BOOST" },
     ],
   },
 ];
 
 const shuffleLayerConfigurations = false;
 
-const debugLogs = false;
+const debugLogs = true;
+
+// If the content is a video
+const isVideo = true;
+
+const imgExtension = ".mp4";
+
+// Metadatas & images storage
+const centralizedStorage = true;
+
+const videoSettings = {
+  snapshot: "00:00:22",
+  time: "00:00:23",
+  audioLayer: 0,
+  BG: "black",
+  size: "1080x1920",
+  hexColor: "0x4aff01",
+  similarity: "0.2",
+  bend: "0.01"
+}
 
 const format = {
   width: 512,
@@ -72,13 +78,13 @@ const pixelFormat = {
 };
 
 const background = {
-  generate: true,
+  generate: false,
   brightness: "80%",
   static: false,
   default: "#000000",
 };
 
-const extraMetadata = {};
+let extraMetadata = {};
 
 const rarityDelimiter = "#";
 
@@ -102,9 +108,14 @@ const preview_gif = {
 
 module.exports = {
   format,
+  symbol,
   baseUri,
   description,
   background,
+  isVideo,
+  centralizedStorage,
+  imgExtension,
+  videoSettings,
   uniqueDnaTorrance,
   layerConfigurations,
   rarityDelimiter,
@@ -116,7 +127,6 @@ module.exports = {
   text,
   namePrefix,
   network,
-  solanaMetadata,
   gif,
   preview_gif,
 };

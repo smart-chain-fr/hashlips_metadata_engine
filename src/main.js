@@ -1,12 +1,14 @@
 const basePath = process.cwd();
 const { NETWORK } = require(`${basePath}/constants/network.js`);
 const fs = require("fs");
+const child_process = require("child_process");
 const sha1 = require(`${basePath}/node_modules/sha1`);
 const { createCanvas, loadImage } = require(`${basePath}/node_modules/canvas`);
 const buildDir = `${basePath}/build`;
 const layersDir = `${basePath}/layers`;
 const {
   format,
+  symbol,
   baseUri,
   description,
   background,
@@ -17,9 +19,12 @@ const {
   debugLogs,
   extraMetadata,
   text,
+  isVideo,
+  videoSettings,
+  centralizedStorage,
+  imgExtension,
   namePrefix,
   network,
-  solanaMetadata,
   gif,
 } = require(`${basePath}/src/config.js`);
 const canvas = createCanvas(format.width, format.height);
@@ -30,8 +35,10 @@ var attributesList = [];
 var dnaList = new Set();
 const DNA_DELIMITER = "-";
 const HashlipsGiffer = require(`${basePath}/modules/HashlipsGiffer.js`);
+const Upload = require(`${basePath}/modules/upload.js`);
 
 let hashlipsGiffer = null;
+let upload = null;
 
 const buildSetup = () => {
   if (fs.existsSync(buildDir)) {
@@ -112,7 +119,7 @@ const layersSetup = (layersOrder) => {
 
 const saveImage = (_editionCount) => {
   fs.writeFileSync(
-    `${buildDir}/images/${_editionCount}.png`,
+    `${buildDir}/images/${symbol}_${_editionCount}.png`,
     canvas.toBuffer("image/png")
   );
 };
@@ -128,45 +135,28 @@ const drawBackground = () => {
   ctx.fillRect(0, 0, format.width, format.height);
 };
 
-const addMetadata = (_dna, _edition) => {
-  let dateTime = Date.now();
-  let tempMetadata = {
-    name: `${namePrefix} #${_edition}`,
-    description: description,
-    image: `${baseUri}/${_edition}.png`,
-    dna: sha1(_dna),
-    edition: _edition,
-    date: dateTime,
-    ...extraMetadata,
-    attributes: attributesList,
-    compiler: "HashLips Art Engine",
-  };
-  if (network == NETWORK.sol) {
+const addMetadata = (_dna, _edition, imageUri) => {
+  let tempMetadata = null;
+  isVideo ?
     tempMetadata = {
-      //Added metadata for solana
-      name: tempMetadata.name,
-      symbol: solanaMetadata.symbol,
-      description: tempMetadata.description,
-      //Added metadata for solana
-      seller_fee_basis_points: solanaMetadata.seller_fee_basis_points,
-      image: `${_edition}.png`,
-      //Added metadata for solana
-      external_url: solanaMetadata.external_url,
-      edition: _edition,
+      name: `${namePrefix}`,
+      description: description,
+      image: imageUri.imageUri,
+      animation_url: imageUri.animationUri,
+      dna: sha1(_dna),
+      tokenId: _edition,
       ...extraMetadata,
-      attributes: tempMetadata.attributes,
-      properties: {
-        files: [
-          {
-            uri: `${_edition}.png`,
-            type: "image/png",
-          },
-        ],
-        category: "image",
-        creators: solanaMetadata.creators,
-      },
+      attributes: attributesList,
+    }
+    : tempMetadata = {
+      name: `${namePrefix}`,
+      description: description,
+      image: imageUri,
+      dna: sha1(_dna),
+      tokenId: _edition,
+      ...extraMetadata,
+      attributes: attributesList,
     };
-  }
   metadataList.push(tempMetadata);
   attributesList = [];
 };
@@ -218,6 +208,68 @@ const drawElement = (_renderObject, _index, _layersLen) => {
 
   addAttributes(_renderObject);
 };
+
+const filmElement = (_element, _editionCount) => {
+  let videoComponents = [
+    "-f",
+    "lavfi",
+    "-i",
+    `color=c=${videoSettings.BG}:s=${videoSettings.size}`,
+    "-i",
+    _element[0]
+    ];
+  let overlay = `[1:v]chromakey=${videoSettings.hexColor}:${videoSettings.similarity}:${videoSettings.bend}[v1];[0:v][v1]overlay[v01];`;
+  for (let i = 1; i < _element.length; i++) {
+    videoComponents.push("-i");
+    videoComponents.push(_element[i]);
+    overlay = `${overlay}` + `[${i+1}:v]chromakey=${videoSettings.hexColor}:${videoSettings.similarity}:${videoSettings.bend}[v${i+1}];[v0${i}][v${i+1}]overlay[v0${i+1}];`
+  }
+  videoComponents.push("-filter_complex");
+  videoComponents.push(overlay.slice(0, -1));
+  videoComponents.push("-map", `[v0${_element.length}]`, "-map", `1:a:${videoSettings.audioLayer}`, "-t", videoSettings.time, `./build/images/${symbol}_${_editionCount + imgExtension}`);
+  console.log(videoComponents);
+  console.log("... ffmpeg executing");
+  const process = child_process.execFileSync(
+    "ffmpeg",
+    videoComponents,
+    // {
+    //   cwd: "./image-rendition",
+    // },
+    // function (err, stdout, stderr) {
+    //   console.log("... ffmpeg is compeled:");
+    // }
+  );
+
+  // process.stdout.on("data", console.log);
+  // process.stderr.on("data", console.error);
+  
+};
+
+const generatePreviewImage = (_editionCount) => {
+  const previewParams= [
+    "-ss",
+    `${videoSettings.snapshot}`,
+    "-i",
+    `./build/images/${symbol}_${_editionCount}.mp4`,
+    "-frames:v",
+    "1",
+    `./build/images/preview_${symbol}_${_editionCount}.png`,
+  ];
+  const process = child_process.execFileSync(
+    "ffmpeg",
+    previewParams,
+    // {
+    //   cwd: "./image-rendition",
+    // },
+    // function (err, stdout, stderr) {
+    //   console.log("... ffmpeg is compeled:");
+    // }
+  );
+
+  // process.stdout.on("data", console.log);
+  // process.stderr.on("data", console.error);
+};
+
 
 const constructLayerToDna = (_dna = "", _layers = []) => {
   let mappedDnaToLayers = _layers.map((layer, index) => {
@@ -308,7 +360,7 @@ const writeMetaData = (_data) => {
 };
 
 const saveMetaDataSingleFile = (_editionCount) => {
-  let metadata = metadataList.find((meta) => meta.edition == _editionCount);
+  let metadata = metadataList.find((meta) => meta.tokenId == _editionCount);
   debugLogs
     ? console.log(
         `Writing metadata for ${_editionCount}: ${JSON.stringify(metadata)}`
@@ -319,6 +371,20 @@ const saveMetaDataSingleFile = (_editionCount) => {
     JSON.stringify(metadata, null, 2)
   );
 };
+
+const exportImages = async(_editionCount) => {
+  let upload = new Upload();
+  let imgUri = null;
+  centralizedStorage ?  imgUri = await upload.imageS3(_editionCount)
+  : imgUri = await upload.imageIpfs(_editionCount);
+  if(isVideo) {
+    let previewUri = null;
+    centralizedStorage ? previewUri = await upload.previewS3(_editionCount)
+    : previewUri = await upload.previewIpfs(_editionCount);
+    return {imageUri: previewUri, animationUri: imgUri};
+  }
+  return imgUri;
+}
 
 function shuffle(array) {
   let currentIndex = array.length,
@@ -339,6 +405,7 @@ const startCreating = async () => {
   let editionCount = 1;
   let failedCount = 0;
   let abstractedIndexes = [];
+  upload = new Upload();
   for (
     let i = network == NETWORK.sol ? 0 : 1;
     i <= layerConfigurations[layerConfigurations.length - 1].growEditionSizeTo;
@@ -363,53 +430,65 @@ const startCreating = async () => {
       if (isDnaUnique(dnaList, newDna)) {
         let results = constructLayerToDna(newDna, layers);
         let loadedElements = [];
-
-        results.forEach((layer) => {
+        if(isVideo) {
+          results.forEach((layer) => {
+          loadedElements.push(layer.selectedElement.path);
+        });
+        filmElement(loadedElements, editionCount);
+        generatePreviewImage(editionCount);
+        console.log(
+          `Created edition: ${abstractedIndexes[0]}, with DNA: ${sha1(
+            newDna
+          )}`
+        );
+        } else {
+           results.forEach((layer) => {
           loadedElements.push(loadLayerImg(layer));
-        });
-
-        await Promise.all(loadedElements).then((renderObjectArray) => {
-          debugLogs ? console.log("Clearing canvas") : null;
-          ctx.clearRect(0, 0, format.width, format.height);
-          if (gif.export) {
-            hashlipsGiffer = new HashlipsGiffer(
-              canvas,
-              ctx,
-              `${buildDir}/gifs/${abstractedIndexes[0]}.gif`,
-              gif.repeat,
-              gif.quality,
-              gif.delay
-            );
-            hashlipsGiffer.start();
-          }
-          if (background.generate) {
-            drawBackground();
-          }
-          renderObjectArray.forEach((renderObject, index) => {
-            drawElement(
-              renderObject,
-              index,
-              layerConfigurations[layerConfigIndex].layersOrder.length
-            );
-            if (gif.export) {
-              hashlipsGiffer.add();
-            }
           });
-          if (gif.export) {
-            hashlipsGiffer.stop();
-          }
-          debugLogs
-            ? console.log("Editions left to create: ", abstractedIndexes)
-            : null;
-          saveImage(abstractedIndexes[0]);
-          addMetadata(newDna, abstractedIndexes[0]);
-          saveMetaDataSingleFile(abstractedIndexes[0]);
-          console.log(
-            `Created edition: ${abstractedIndexes[0]}, with DNA: ${sha1(
-              newDna
-            )}`
-          );
-        });
+          await Promise.all(loadedElements).then((renderObjectArray) => {
+            debugLogs ? console.log("Clearing canvas") : null;
+            ctx.clearRect(0, 0, format.width, format.height);
+            if (gif.export) {
+              hashlipsGiffer = new HashlipsGiffer(
+                canvas,
+                ctx,
+                `${buildDir}/gifs/${abstractedIndexes[0]}.gif`,
+                gif.repeat,
+                gif.quality,
+                gif.delay
+              );
+              hashlipsGiffer.start();
+            }
+            if (background.generate) {
+              drawBackground();
+            }
+            renderObjectArray.forEach((renderObject, index) => {
+              drawElement(
+                renderObject,
+                index,
+                layerConfigurations[layerConfigIndex].layersOrder.length
+              );
+              if (gif.export) {
+                hashlipsGiffer.add();
+              }
+            });
+            if (gif.export) {
+              hashlipsGiffer.stop();
+            }
+            debugLogs
+              ? console.log("Editions left to create: ", abstractedIndexes)
+              : null;
+            saveImage(abstractedIndexes[0]);
+            console.log(
+              `Created edition: ${abstractedIndexes[0]}, with DNA: ${sha1(
+                newDna
+              )}`
+            );
+          });
+        }
+        let imageUri = await exportImages(abstractedIndexes[0]);
+        addMetadata(newDna, abstractedIndexes[0], imageUri);
+        saveMetaDataSingleFile(abstractedIndexes[0]);
         dnaList.add(filterDNAOptions(newDna));
         editionCount++;
         abstractedIndexes.shift();
