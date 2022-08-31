@@ -14,12 +14,18 @@ const baseUri = "ipfs://NewUriToReplace";
 // If you have selected Solana then the collection starts from 0 automatically
 const layerConfigurations = [
   {
-    growEditionSizeTo: 4,
+    growEditionSizeTo: 1000,
     layersOrder: [
-      { name: "RALLY" },
-      { name: "COUNTER" },
-      { name: "SPEED" },
-      { name: "BOOST" },
+      { name: "Background" },
+      { name: "Body" },
+      { name: "Clothing" },
+      { name: "Accessory" },
+      { name: "Hat" },
+      { name: "Hands" },
+      { name: "Text 1" },
+      { name: "Text 2" },
+      { name: "Text 3" },
+      { name: "Text 4" }
     ],
   },
 ];
@@ -48,8 +54,8 @@ const videoSettings = {
 }
 
 const format = {
-  width: 512,
-  height: 512,
+  width: 2590,
+  height: 2611,
   smoothing: false,
 };
 

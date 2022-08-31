@@ -152,7 +152,6 @@ const addMetadata = (_dna, _edition, imageUri) => {
       name: `${namePrefix}`,
       description: description,
       image: imageUri,
-      dna: sha1(_dna),
       tokenId: _edition,
       ...extraMetadata,
       attributes: attributesList,
@@ -372,19 +371,23 @@ const saveMetaDataSingleFile = (_editionCount) => {
   );
 };
 
+
 const exportImages = async(_editionCount) => {
-  let upload = new Upload();
-  let imgUri = null;
-  centralizedStorage ?  imgUri = await upload.imageS3(_editionCount)
+  centralizedStorage ?  imgUri = await Upload.imageS3(_editionCount)
   : imgUri = await upload.imageIpfs(_editionCount);
   if(isVideo) {
     let previewUri = null;
-    centralizedStorage ? previewUri = await upload.previewS3(_editionCount)
+    centralizedStorage ? previewUri = await Upload.previewS3(_editionCount)
     : previewUri = await upload.previewIpfs(_editionCount);
     return {imageUri: previewUri, animationUri: imgUri};
   }
   return imgUri;
 }
+
+const exportMetadatas = async() => {
+  centralizedStorage ? await Upload.uploadCentralizedMetadatas()
+  : await Upload.folderIPFS();
+};
 
 function shuffle(array) {
   let currentIndex = array.length,
@@ -407,8 +410,8 @@ const startCreating = async () => {
   let abstractedIndexes = [];
   upload = new Upload();
   for (
-    let i = network == NETWORK.sol ? 0 : 1;
-    i <= layerConfigurations[layerConfigurations.length - 1].growEditionSizeTo;
+    let i = 0;
+    i < layerConfigurations[layerConfigurations.length - 1].growEditionSizeTo;
     i++
   ) {
     abstractedIndexes.push(i);
@@ -508,4 +511,4 @@ const startCreating = async () => {
   writeMetaData(JSON.stringify(metadataList, null, 2));
 };
 
-module.exports = { startCreating, buildSetup, getElements };
+module.exports = { startCreating, buildSetup, getElements, exportMetadatas};

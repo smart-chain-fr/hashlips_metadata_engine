@@ -62,6 +62,15 @@ class Upload {
             }  
     };
 
+    uploadCentralizedMetadatas = async() => {
+        const _nftData = fs.readFileSync(`${buildDir}/json/_metadata.json`, "utf8");
+        const nftData = await JSON.parse(file);
+        for(let i = 0; i < nftData.length; i++) {
+          await metadatasS3(nftData);
+        }
+    };
+
+
     metadatasS3 = async(nftData) => {
         try {
             const response = await axios.post(this.apiUrl+'metadata',nftData, {
