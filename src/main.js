@@ -355,7 +355,7 @@ const createDna = (_layers) => {
 };
 
 const writeMetaData = (_data) => {
-  fs.writeFileSync(`${buildDir}/json/_metadata.json`, _data);
+  fs.writeFileSync(`${buildDir}/json/collection.json`, _data);
 };
 
 const saveMetaDataSingleFile = (_editionCount) => {
@@ -366,18 +366,20 @@ const saveMetaDataSingleFile = (_editionCount) => {
       )
     : null;
   fs.writeFileSync(
-    `${buildDir}/json/${_editionCount}.json`,
+    `${buildDir}/json/${_editionCount}`,
     JSON.stringify(metadata, null, 2)
   );
 };
 
 
+
 const exportImages = async(_editionCount) => {
-  centralizedStorage ?  imgUri = await Upload.imageS3(_editionCount)
+  const upload = new Upload();
+  centralizedStorage ?  imgUri = await upload.imageS3(_editionCount)
   : imgUri = await upload.imageIpfs(_editionCount);
   if(isVideo) {
     let previewUri = null;
-    centralizedStorage ? previewUri = await Upload.previewS3(_editionCount)
+    centralizedStorage ? previewUri = await upload.previewS3(_editionCount)
     : previewUri = await upload.previewIpfs(_editionCount);
     return {imageUri: previewUri, animationUri: imgUri};
   }
@@ -385,9 +387,36 @@ const exportImages = async(_editionCount) => {
 }
 
 const exportMetadatas = async() => {
-  centralizedStorage ? await Upload.uploadCentralizedMetadatas()
-  : await Upload.folderIPFS();
+  const upload = new Upload();
+  let response;
+  centralizedStorage ? response = await upload.uploadCentralizedMetadatas()
+  : response = await upload.folderIpfs();
+  console.log(response.IpfsHash);
 };
+
+const addImageURI = async() => {
+  let rawdata = fs.readFileSync(`${basePath}/build/json/collection.json`);
+  let data = JSON.parse(rawdata);
+  for (let i = 0; i < data.length; i++) {
+    let uri = await exportImages(i);
+      if (isVideo) {
+        data[i].image = uri.imageUri;
+        data[i].animation_url = uri.animationUri;
+        console.log(`pinned edition ${i} with CID : ipfs://${uri.animationUri.IpfsHash}`);
+      } else {
+        data[i].image = baseUri + uri.IpfsHash;
+        console.log(`pinned edition ${i} with CID : ipfs://${uri.IpfsHash}`);
+      }
+    fs.writeFileSync(
+      `${basePath}/build/json/${i}`,
+      JSON.stringify(data[i], null, 2)
+    );
+  }
+  fs.writeFileSync(
+    `${basePath}/build/json/collection.json`,
+    JSON.stringify(data, null, 2)
+  );
+}
 
 function shuffle(array) {
   let currentIndex = array.length,
@@ -489,8 +518,8 @@ const startCreating = async () => {
             );
           });
         }
-        let imageUri = await exportImages(abstractedIndexes[0]);
-        addMetadata(newDna, abstractedIndexes[0], imageUri);
+        // let imageUri = await exportImages(abstractedIndexes[0]);
+        // addMetadata(newDna, abstractedIndexes[0], imageUri);
         saveMetaDataSingleFile(abstractedIndexes[0]);
         dnaList.add(filterDNAOptions(newDna));
         editionCount++;
@@ -511,4 +540,4 @@ const startCreating = async () => {
   writeMetaData(JSON.stringify(metadataList, null, 2));
 };
 
-module.exports = { startCreating, buildSetup, getElements, exportMetadatas};
+module.exports = { startCreating, buildSetup, getElements, addImageURI, exportMetadatas};

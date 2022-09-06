@@ -1,6 +1,7 @@
 const basePath = process.cwd();
-const { exportMetadatas } = require(`${basePath}/src/main.js`);
+const { exportMetadatas, addImageURI} = require(`${basePath}/src/main.js`);
 
 (async () => {
-  await exportMetadatas();
+   await addImageURI();
+   await exportMetadatas();
 })();

@@ -5,10 +5,10 @@ const { NETWORK } = require(`${basePath}/constants/network.js`);
 const network = NETWORK.eth;
 
 // General metadata for Ethereum
-const namePrefix = "Your Collection";
-const symbol = "YC";
-const description = "Remember to replace this description";
-const baseUri = "ipfs://NewUriToReplace";
+const namePrefix = "Your Collection Name";
+const symbol = "YCN";
+const description = "describe the collection";
+const baseUri = "ipfs://YourBaseURI";
 
 
 // If you have selected Solana then the collection starts from 0 automatically
@@ -35,12 +35,12 @@ const shuffleLayerConfigurations = false;
 const debugLogs = true;
 
 // If the content is a video
-const isVideo = true;
+const isVideo = false;
 
-const imgExtension = ".mp4";
+const imgExtension = ".PNG";
 
 // Metadatas & images storage
-const centralizedStorage = true;
+const centralizedStorage = false;
 
 const videoSettings = {
   snapshot: "00:00:22",

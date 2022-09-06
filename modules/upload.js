@@ -21,7 +21,7 @@ class Upload {
   }
 
     imageS3 = async(_editionCount) => {
-        console.log(this.apiUrl, this.apiToken)
+        console.log(this.apiUrl)
         const formData = new FormData();
         formData.append('files', fs.readFileSync(`${buildDir}/images/${symbol}_${_editionCount + imgExtension}`), { filename: `${symbol}_${_editionCount + imgExtension}`});
             try {
@@ -42,7 +42,7 @@ class Upload {
     };
 
     previewS3 = async(_editionCount) => {
-        console.log(this.apiUrl, this.apiToken)
+        console.log(this.apiUrl)
         const formData = new FormData();
         formData.append('files', fs.readFileSync(`${buildDir}/images/preview_${symbol}_${_editionCount}.png`), { filename: `preview_${symbol}_${_editionCount}.png`});
             try {
@@ -104,7 +104,9 @@ class Upload {
     };
 
     imageIpfs = async(_editionCount) => {
-        const file = fs.readFileSync(`${buildDir}/images/${symbol}_${_editionCount + imgExtension}`);
+        const formData = new FormData();
+        formData.append('files', fs.readFileSync(`${buildDir}/images/${_editionCount + imgExtension}`), { filename: `${_editionCount + imgExtension}`});
+        const file = fs.createReadStream(`${buildDir}/images/${_editionCount + imgExtension}`);
         try {
             return await this.pinata.pinFileToIPFS(file);
         } catch (e) {
@@ -124,6 +126,14 @@ class Upload {
     folderIpfs = async() => {
         try {
             return await this.pinata.pinFromFS(`${buildDir}/json`);
+        } catch (e) {
+            console.log(e);
+        }
+    };
+
+    deleteFolder = async(ipfsHash) => {
+        try {
+            return await this.pinata.unpin(ipfsHash)
         } catch (e) {
             console.log(e);
         }
